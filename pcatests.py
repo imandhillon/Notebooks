@@ -3,7 +3,7 @@ from sklearn.decomposition import PCA, KernelPCA
 import matplotlib.pyplot as plt
 from matplotlib import pylab
 
-
+np.random.seed(0)
 '''
 import itertools as itt
 from collections import Counter
@@ -16,7 +16,11 @@ poly = '+'.join(itt.starmap(lambda u, t: u+"*"+t if t else u, zip(map(lambda v: 
 # Generate Gaussian datasets (2/high dimensional)
 mean = (3,3)
 cov = [[2,0],[0,2]]
-gauss2d = np.random.multivariate_normal(mean, cov, 1000)
+gauss2d = np.random.multivariate_normal(mean, cov, 1000).T
+print(gauss2d.size)
+
+plt.scatter(gauss2d[0,:],gauss2d[1,:])
+plt.show()
 
 meanhighD = np.random.randint(10, size=50)
 covhighD = np.identity(50, dtype=int)
@@ -77,14 +81,32 @@ for i in range(50):
 
 
 # Run PCA on data
-pca = PCA(n_components=9)
-pca.fit(sin)
-print('Explained')
-print(pca.explained_variance_ratio_)
-print('Singular Values')
-print(pca.singular_values_) 
+pca = PCA()
+pca.fit(gausshighD)
+#print('Explained')
+#print(pca.explained_variance_)
+#print(pca.explained_variance_ratio_)
+print(pca.mean_.shape)
+print(pca.components_.shape)
+reduceddata = np.dot(gausshighD - pca.mean_, pca.components_.T)
+reproduction = np.dot(reduceddata, pca.components_) + pca.mean_
+print(reduceddata.shape)
+print(reproduction.shape)
+plt.scatter(reproduction[0,:],reproduction[1,:])
+plt.show()
 
-kpca = KernelPCA(n_components=9)
-kpca.fit(sin)
+
+#print('Singular Values')
+#print(pca.singular_values_) 
+
+kpca = KernelPCA(n_components=13)
+kpca.fit(gausshighD)
 print('kpca lambdas')
 print(kpca.lambdas_)
+
+kpca_explained = np.zeros(13)
+for i in range(13):
+    kpca_explained[i] = kpca.lambdas_[i]/np.sum(kpca.lambdas_)
+print(kpca_explained)
+
+#kpca.inverse_transform()
