@@ -11,16 +11,29 @@ n = 3
 xy = ("x", "y") # list of variables may be extended indefinitely
 poly = '+'.join(itt.starmap(lambda u, t: u+"*"+t if t else u, zip(map(lambda v: "C["+str(v)+"]", itt.count()),map(lambda z: "*".join(z), map(lambda x: tuple(map(lambda y: "**".join(map(str, filter(lambda w: w!=1, y))), x)), map(dict.items, (map(Counter, itt.chain.from_iterable(itt.combinations_with_replacement(xy, i) for i in range(n+1))))))))))
 '''
+def zca_whiten(data):
+    sigma = np.cov(data, rowvar=True)
+    U,S,V = np.linalg.svd(sigma)
+    epsilon = 1e-9
+    zca = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
+    white_projection = np.dot(zca, data)
+    print('data - white (to see if different)')
+    print(data - white_projection)
+    plt.scatter(white_projection[0,:], white_projection[1,:])
+    plt.show()
 
 
 # Generate Gaussian datasets (2/high dimensional)
 mean = (3,3)
-cov = [[2,0],[0,2]]
+cov = 2*np.eye(2)#[[2,0],[0,2]]
 gauss2d = np.random.multivariate_normal(mean, cov, 1000).T
 print(gauss2d.size)
 
 plt.scatter(gauss2d[0,:],gauss2d[1,:])
 plt.show()
+zca_whiten(gauss2d)
+###########################################################
+# Just want to make sure this case works as it should before moving on the others
 
 meanhighD = np.random.randint(10, size=50)
 covhighD = np.identity(50, dtype=int)
@@ -81,7 +94,7 @@ for i in range(50):
 
 
 # Run PCA on data
-pca = PCA()
+pca = PCA(whiten=True)
 pca.fit(gausshighD)
 #print('Explained')
 #print(pca.explained_variance_)
@@ -92,8 +105,8 @@ reduceddata = np.dot(gausshighD - pca.mean_, pca.components_.T)
 reproduction = np.dot(reduceddata, pca.components_) + pca.mean_
 print(reduceddata.shape)
 print(reproduction.shape)
-plt.scatter(reproduction[0,:],reproduction[1,:])
-plt.show()
+#plt.scatter(reproduction[0,:],reproduction[1,:])
+#plt.show()
 
 
 #print('Singular Values')
