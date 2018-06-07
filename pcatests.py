@@ -22,26 +22,30 @@ def my_pca(data, svd=False, whiten=False):
             zca = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
     else:
         evals, evecs = np.linalg.eigh(sigma)
+        # Normalize eigenvectors
+        evecs = evecs/np.linalg.norm(evecs)
         if whiten is True:
             epsilon = 1e-9
             D = np.diag(1. / np.sqrt(evals+epsilon))
             zca = np.dot(np.dot(evecs, D), evecs.T)
-    print(evecs)
+    
     projection = np.dot(evecs, data)
-    print('evals: ', evals)
-    sigma_proj = projection.std(axis=0).mean()
+    
+    if data.shape[0] == 2:
+        sigma_proj = projection.std(axis=0).mean()
 
-    fig, ax = plt.subplots()
-    ax.scatter(projection[0,:], projection[1,:])
-    for axis in evecs:
-        start, end = mu, mu + sigma_proj * axis
-        ax.annotate(
-            '', xy=end, xycoords='data',
-            xytext=start, textcoords='data',
-            arrowprops=dict(facecolor='red', width=2.0))
-    ax.set_aspect('equal')
+        fig, ax = plt.subplots()
+        ax.scatter(projection[0,:], projection[1,:])
+        for axis in evecs:
+            start, end = mu, mu + sigma_proj * axis
+            ax.annotate(
+                '', xy=end, xycoords='data',
+                xytext=start, textcoords='data',
+                arrowprops=dict(facecolor='red', width=2.0))
+        ax.set_aspect('equal')
 
-    plt.show()
+        plt.show()
+
     loss = ((data - projection) **2).mean()
     print('mypca loss:', loss)
 
@@ -123,27 +127,28 @@ for i in range(50):
     # Will make label vector soon
 
 
-# Run PCA on data
+# Run sklearn's PCA on data
+data = gauss2d.T
 pca = PCA()
-pca.fit(gauss2d.T)
+pca.fit(data)
 print('Explained (sklearn)')
 print(pca.explained_variance_)
 print(pca.explained_variance_ratio_)
 
-#reduceddata = np.dot(gauss2d - pca.mean_, pca.components_.T)
-#reproduction = np.dot(reduceddata, pca.components_) + pca.mean_
-transdata = pca.transform(gauss2d.T)
-reproduction = pca.inverse_transform(transdata)
+reduceddata = np.dot(data - pca.mean_, pca.components_)
+reproduction = np.dot(reduceddata, pca.components_.T) + pca.mean_
+#transdata = pca.transform(data)
+#reproduction = pca.inverse_transform(transdata)
 print(reproduction.shape)
 plt.scatter(reproduction[:,0],reproduction[:,1])
 plt.show()
 
-skloss = ((gauss2d.T - reproduction) **2).mean()
+skloss = ((data - reproduction) **2).mean()
 print('skloss:', skloss)
 
 
 # Plot sklearn projection with arrows for eigenvectors
-mu = gauss2d.mean(axis=1)
+mu = data.mean(axis=0)
 sigma_proj = reproduction.std(axis=0).mean()
 
 fig, ax = plt.subplots()
@@ -158,7 +163,7 @@ ax.set_aspect('equal')
 
 plt.show()
 
-
+# Sklearn's Kernel PCA
 '''
 kpca = KernelPCA(n_components=13)
 kpca.fit(gausshighD)
