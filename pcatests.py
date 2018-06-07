@@ -4,40 +4,71 @@ import matplotlib.pyplot as plt
 from matplotlib import pylab
 
 np.random.seed(0)
-'''
-import itertools as itt
-from collections import Counter
-n = 3
-xy = ("x", "y") # list of variables may be extended indefinitely
-poly = '+'.join(itt.starmap(lambda u, t: u+"*"+t if t else u, zip(map(lambda v: "C["+str(v)+"]", itt.count()),map(lambda z: "*".join(z), map(lambda x: tuple(map(lambda y: "**".join(map(str, filter(lambda w: w!=1, y))), x)), map(dict.items, (map(Counter, itt.chain.from_iterable(itt.combinations_with_replacement(xy, i) for i in range(n+1))))))))))
-'''
-def zca_whiten(data):
-    sigma = np.cov(data, rowvar=True)
-    U,S,V = np.linalg.svd(sigma)
-    epsilon = 1e-9
-    zca = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
-    white_projection = np.dot(zca, data)
-    print('data - white (to see if different)')
-    print(data - white_projection)
-    plt.scatter(white_projection[0,:], white_projection[1,:])
+
+
+def my_pca(data, svd=False, whiten=False):
+
+    # Zero out mean for all dimensions
+    for i in range(data.shape[0]):
+        data[i,:] = data[i,:] - np.mean(data[i,:])
+
+    mu = data.mean(axis=1)
+    sigma = np.cov(data, rowvar=True)/data.shape[0]
+    
+    if svd is True:
+        U,S,V = np.linalg.svd(sigma)
+        if whiten is True:
+            epsilon = 1e-9
+            zca = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
+    else:
+        evals, evecs = np.linalg.eigh(sigma)
+        if whiten is True:
+            epsilon = 1e-9
+            D = np.diag(1. / np.sqrt(evals+epsilon))
+            zca = np.dot(np.dot(evecs, D), evecs.T)
+    print(evecs)
+    projection = np.dot(evecs, data)
+    print('evals: ', evals)
+    sigma_proj = projection.std(axis=0).mean()
+
+    fig, ax = plt.subplots()
+    ax.scatter(projection[0,:], projection[1,:])
+    for axis in evecs:
+        start, end = mu, mu + sigma_proj * axis
+        ax.annotate(
+            '', xy=end, xycoords='data',
+            xytext=start, textcoords='data',
+            arrowprops=dict(facecolor='red', width=2.0))
+    ax.set_aspect('equal')
+
     plt.show()
+    loss = ((data - projection) **2).mean()
+    print('mypca loss:', loss)
 
 
 # Generate Gaussian datasets (2/high dimensional)
-mean = (3,3)
-cov = 2*np.eye(2)#[[2,0],[0,2]]
+mean = (3,4)
+cov = [[4,0],[0,4]]#2*np.eye(2)[[2,0],[0,2]]
 gauss2d = np.random.multivariate_normal(mean, cov, 1000).T
-print(gauss2d.size)
+mean2 = (5,18)
+cov2 = [[10,2],[2,10]]
+g2 = np.random.multivariate_normal(mean2, cov2, 1000).T
+gauss2d = np.hstack((gauss2d, g2))
+
+# Zero out mean for all dimensions
+for i in range(gauss2d.shape[0]):
+    gauss2d[i,:] = gauss2d[i,:] - np.mean(gauss2d[i,:])
 
 plt.scatter(gauss2d[0,:],gauss2d[1,:])
 plt.show()
-zca_whiten(gauss2d)
-###########################################################
-# Just want to make sure this case works as it should before moving on the others
+my_pca(gauss2d)
 
+
+# High D Gaussian
 meanhighD = np.random.randint(10, size=50)
-covhighD = np.identity(50, dtype=int)
+covhighD = np.identity(50, dtype=float)
 gausshighD = np.random.multivariate_normal(meanhighD, covhighD, 1000)
+#my_pca(gausshighD)
 
 ##################
 # Generate non-Gaussian datasets (2/high dimensional)
@@ -59,7 +90,6 @@ polynom2d = np.vstack((x_new, y_new))
 
 
 # Generate high dim signal
-
 sin = np.zeros((50, 1000))
 for i in range(50):
     # dec[0] is for (high/low) amplitude
@@ -94,24 +124,42 @@ for i in range(50):
 
 
 # Run PCA on data
-pca = PCA(whiten=True)
-pca.fit(gausshighD)
-#print('Explained')
-#print(pca.explained_variance_)
-#print(pca.explained_variance_ratio_)
-print(pca.mean_.shape)
-print(pca.components_.shape)
-reduceddata = np.dot(gausshighD - pca.mean_, pca.components_.T)
-reproduction = np.dot(reduceddata, pca.components_) + pca.mean_
-print(reduceddata.shape)
+pca = PCA()
+pca.fit(gauss2d.T)
+print('Explained (sklearn)')
+print(pca.explained_variance_)
+print(pca.explained_variance_ratio_)
+
+#reduceddata = np.dot(gauss2d - pca.mean_, pca.components_.T)
+#reproduction = np.dot(reduceddata, pca.components_) + pca.mean_
+transdata = pca.transform(gauss2d.T)
+reproduction = pca.inverse_transform(transdata)
 print(reproduction.shape)
-#plt.scatter(reproduction[0,:],reproduction[1,:])
-#plt.show()
+plt.scatter(reproduction[:,0],reproduction[:,1])
+plt.show()
+
+skloss = ((gauss2d.T - reproduction) **2).mean()
+print('skloss:', skloss)
 
 
-#print('Singular Values')
-#print(pca.singular_values_) 
+# Plot sklearn projection with arrows for eigenvectors
+mu = gauss2d.mean(axis=1)
+sigma_proj = reproduction.std(axis=0).mean()
 
+fig, ax = plt.subplots()
+ax.scatter(reproduction.T[0,:], reproduction.T[1,:])
+for axis in pca.components_:
+    start, end = mu, mu + sigma_proj * axis
+    ax.annotate(
+        '', xy=end, xycoords='data',
+        xytext=start, textcoords='data',
+        arrowprops=dict(facecolor='red', width=2.0))
+ax.set_aspect('equal')
+
+plt.show()
+
+
+'''
 kpca = KernelPCA(n_components=13)
 kpca.fit(gausshighD)
 print('kpca lambdas')
@@ -123,3 +171,4 @@ for i in range(13):
 print(kpca_explained)
 
 #kpca.inverse_transform()
+'''
