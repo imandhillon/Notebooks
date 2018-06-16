@@ -134,9 +134,9 @@ pca.fit(data)
 print('Explained (sklearn)')
 print(pca.explained_variance_)
 print(pca.explained_variance_ratio_)
-
-reduceddata = np.dot(data - pca.mean_, pca.components_)
-reproduction = np.dot(reduceddata, pca.components_.T) + pca.mean_
+comps = pca.components_/np.linalg.norm(pca.components_)
+reduceddata = np.dot(data - pca.mean_, comps)
+reproduction = np.dot(reduceddata, comps.T) + pca.mean_
 #transdata = pca.transform(data)
 #reproduction = pca.inverse_transform(transdata)
 print(reproduction.shape)
@@ -153,7 +153,7 @@ sigma_proj = reproduction.std(axis=0).mean()
 
 fig, ax = plt.subplots()
 ax.scatter(reproduction.T[0,:], reproduction.T[1,:])
-for axis in pca.components_:
+for axis in comps:
     start, end = mu, mu + sigma_proj * axis
     ax.annotate(
         '', xy=end, xycoords='data',
