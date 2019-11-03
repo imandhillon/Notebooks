@@ -1,2 +1,2 @@
 # Notebooks
-Developing foundations in ML and mathematics
+Developing foundations in ML, mathematics, and programming.
